@@ -6,7 +6,7 @@
  * For more information on setting OnStep up see http://www.stellarjourney.com/index.php?r=site/equipment_onstep and 
  * join the OnStep Groups.io at https://groups.io/g/onstep
  * 
- * See the Pins.MiniPCB.h file for detailed information on this pin map to be sure it matches your wiring *** USE AT YOUR OWN RISK ***
+ * See the Pins.Mega2560Alt.h file for detailed information on this pin map to be sure it matches your wiring *** USE AT YOUR OWN RISK ***
  *
 */
 
@@ -17,7 +17,7 @@
 // ADJUST THE FOLLOWING TO CONFIGURE YOUR CONTROLLER FEATURES --------------------------------------------------------------
 
 // Default speed for Serial1 com port, Default=9600
-#define SERIAL1_BAUD_DEFAULT 9600
+#define SERIAL_B_BAUD_DEFAULT 9600
 
 // Mount type, default is _GEM (German Equatorial) other options are _FORK, _FORK_ALT.  _FORK switches off Meridian Flips after (1, 2 or 3 star) alignment is done.  _FORK_ALT disables Meridian Flips (1 star align.)
 // _ALTAZM is for Alt/Azm mounted 'scopes (1 star align only.)
@@ -77,6 +77,9 @@
 // can be turned on/off with the :Te# and :Td# commands regardless of this setting
 #define TRACK_REFRACTION_RATE_DEFAULT_OFF
 
+// Set to _OFF and OnStep will allow Syncs to change pier side for GEM mounts (on/off), default=_ON
+#define SYNC_CURRENT_PIER_SIDE_ONLY_ON
+
 // Set to _ON and OnStep will remember the last auto meridian flip setting (on/off), default=_OFF
 #define REMEMBER_AUTO_MERIDIAN_FLIP_OFF
 
@@ -85,7 +88,7 @@
 
 // ADJUST THE FOLLOWING TO MATCH YOUR MOUNT --------------------------------------------------------------------------------
 #define REMEMBER_MAX_RATE_OFF        // set to _ON and OnStep will remember rates set in the ASCOM driver, Android App, etc. default=_OFF 
-#define MaxRate                   96 // this is the number of micro-seconds between micro-steps default setting and can be adjusted for two times lower or higher at run-time
+#define MaxRate                   96 // microseconds per microstep default setting for gotos, can be adjusted for two times lower or higher at run-time
                                      // minimum* (fastest goto) is around 32 (Mega2560,) default=96 higher is ok
                                      // * = minimum can be lower, when both AXIS1/AXIS2_MICROSTEPS are used the compiler will warn you if it's too low
 
@@ -131,18 +134,17 @@
 // Axis2: Pins 24,22 = Step,Dir (Dec/Alt)
 
 // Reverse the direction of movement.  Adjust as needed or reverse your wiring so things move in the right direction
-#define REVERSE_AXIS1_OFF            // RA/Azm axis
-#define REVERSE_AXIS2_OFF            // Dec/Alt axis
-
+#define AXIS1_REVERSE_OFF            // RA/Azm axis
+#define AXIS2_REVERSE_OFF            // Dec/Alt axis
 
 // Stepper driver Enable support is always on, just wire Enable to Pins 23 (Axis1) and 36 (Axis2) and OnStep will pull these HIGH
 // to disable stepper drivers on startup and when Parked or Homed.  An Align or UnPark will enable the drivers.  Adjust below if you need these pulled LOW to disable the drivers.
-#define AXIS1_DISABLED_HIGH
-#define AXIS2_DISABLED_HIGH
+#define AXIS1_DISABLE HIGH
+#define AXIS2_DISABLE HIGH
 
 // For equatorial mounts, _ON powers down the Declination axis when it's not being used to help lower power use.  During low rate guiding (<=1x) the axis stays enabled
 // for 10 minutes after any guide on either axis.  Otherwise, the Dec axis is disabled (powered off) 10 seconds after movement stops.
-#define AUTO_POWER_DOWN_AXIS2_OFF
+#define AXIS2_AUTO_POWER_DOWN_OFF
 
 // Basic stepper driver mode setup . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
 // If used, this requires connections M0, M1, and M2 on Pins 29,27,25 for Axis1 (RA/Azm) and Pins 30,32,34 for Axis2 (Dec/Alt).
@@ -156,9 +158,8 @@
 #define AXIS2_MICROSTEPS_GOTO_OFF   // Axis2 (Dec/Alt): Default _OFF, Optional microstep mode used during gotos
 // Note: you can replace this section with the contents of "AdvancedStepperSetup.txt" . . . . . . . . . . . . . . . . . . . 
 
-// Stepper driver Fault detection, just wire the driver Fault signal to Pins 39 (Axis1) and 38 (Axis2), default=_OFF.
-
-// other settings are LOW, HIGH, SPI.  The SPI interface (on M0/M1/M2/Aux) can be used to detect errors on the TMC2130.
+// Stepper driver Fault detection, just wire the driver Fault signal to Pins 39 (Axis1) and 38 (Axis2), default=_OFF.  The SPI interface (on M0/M1/M2/Aux) can be used to detect errors on the TMC2130.
+// other settings are LOW, HIGH, TMC2130 (if available applies internal pullup if LOW and pulldown if HIGH.)
 #define AXIS1_FAULT_OFF
 #define AXIS2_FAULT_OFF
 
@@ -171,31 +172,31 @@
                                      // Rotator          :  24            * 8           * 20              *  6/360                = 64
                                      // For de-rotation of Alt/Az mounts a quick estimate of the required resolution (in StepsPerDegree)
                                      // would be an estimate of the circumference of the useful imaging circle in (pixels * 2)/360
-#define REVERSE_AXIS3_OFF            // reverse the direction of Axis3 rotator movement
 #define MinAxis3                -180 // minimum allowed Axis3 rotator, default = -180
 #define MaxAxis3                 180 // maximum allowed Axis3 rotator, default =  180
+#define AXIS3_REVERSE_OFF            // reverse the direction of Axis3 rotator movement
 
 // FOCUSER1 ---------------------------------------------------------------------------------------------------------------
 // A11,A10 = Step,Dir
 #define FOCUSER1_OFF                 // enable or disable focuser feature, default=_OFF
 #define MaxRateAxis4               8 // this is the minimum number of milli-seconds between micro-steps, default=8
 #define StepsPerMicrometerAxis4  0.5 // figure this out by testing or other means
-#define REVERSE_AXIS4_OFF            // reverse the direction of Axis4 focuser movement
 #define MinAxis4               -25.0 // minimum allowed Axis4 position in millimeters, default = -25.0
 #define MaxAxis4                25.0 // maximum allowed Axis4 position in millimeters, default =  25.0
+#define AXIS4_REVERSE_OFF            // reverse the direction of Axis4 focuser movement
 
 // FOCUSER2 ---------------------------------------------------------------------------------------------------------------
 // A13,A12 = Step,Dir
 #define FOCUSER2_OFF                 // enable or disable focuser feature, default=_OFF
 #define MaxRateAxis5               8 // this is the minimum number of milli-seconds between micro-steps, default=8
 #define StepsPerMicrometerAxis5  0.5 // figure this out by testing or other means
-#define REVERSE_AXIS5_OFF            // reverse the direction of Axis5 focuser movement
 #define MinAxis5               -25.0 // minimum allowed Axis5 position in millimeters, default = -25.0
 #define MaxAxis5                25.0 // maximum allowed Axis5 position in millimeters, default =  25.0
+#define AXIS5_REVERSE_OFF            // reverse the direction of Axis5 focuser movement
 
 // THAT'S IT FOR USER CONFIGURATION!
 
 // -------------------------------------------------------------------------------------------------------------------------
-#define FileVersionConfig 1
-#include "Pins.Mega2560Alt.h"
+#define FileVersionConfig 2
+#include "src/pinmaps/Pins.Mega2560Alt.h"
 #endif

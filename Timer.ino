@@ -19,7 +19,7 @@ volatile long modeAxis2_next=AXIS2_MODE;
 volatile boolean gotoModeAxis2=false;
 #endif
 
-#ifdef AUTO_POWER_DOWN_AXIS2_ON
+#ifdef AXIS2_AUTO_POWER_DOWN_ON
 volatile long Axis2PowerOffTimer = 0;
 volatile bool axis2Powered = false;
 #endif
@@ -134,8 +134,8 @@ ISR(TIMER1_COMPA_vect)
         if ((guideDirAxis1!=lastGuideDirAxis1) && (lastGuideDirAxis1!=0)) guideDirChangeTimerAxis1=25;
         lastGuideDirAxis1=guideDirAxis1;
         if (guideDirChangeTimerAxis1>0) guideDirChangeTimerAxis1--; else {
-          if (guideTimerRateAxis1A>guideTimerRateAxis1) { guideTimerRateAxis1A-=(accArcsecPerSec/100.0)*r; if (guideTimerRateAxis1A<guideTimerRateAxis1) guideTimerRateAxis1A=guideTimerRateAxis1; }
-          if (guideTimerRateAxis1A<guideTimerRateAxis1) { guideTimerRateAxis1A+=(accArcsecPerSec/100.0)*r; if (guideTimerRateAxis1A>guideTimerRateAxis1) guideTimerRateAxis1A=guideTimerRateAxis1; }
+          if (guideTimerRateAxis1A>guideTimerRateAxis1) { guideTimerRateAxis1A-=(accXPerSec/100.0)*r; if (guideTimerRateAxis1A<guideTimerRateAxis1) guideTimerRateAxis1A=guideTimerRateAxis1; }
+          if (guideTimerRateAxis1A<guideTimerRateAxis1) { guideTimerRateAxis1A+=(accXPerSec/100.0)*r; if (guideTimerRateAxis1A>guideTimerRateAxis1) guideTimerRateAxis1A=guideTimerRateAxis1; }
         }
 
         // stop guiding
@@ -175,8 +175,8 @@ ISR(TIMER1_COMPA_vect)
         if ((guideDirAxis2!=lastGuideDirAxis2) && (lastGuideDirAxis2!=0)) guideDirChangeTimerAxis2=25;
         lastGuideDirAxis2=guideDirAxis2;
         if (guideDirChangeTimerAxis2>0) guideDirChangeTimerAxis2--; else {
-          if (guideTimerRateAxis2A>guideTimerRateAxis2) { guideTimerRateAxis2A-=(accArcsecPerSec/100.0)*r; if (guideTimerRateAxis2A<guideTimerRateAxis2) guideTimerRateAxis2A=guideTimerRateAxis2; }
-          if (guideTimerRateAxis2A<guideTimerRateAxis2) { guideTimerRateAxis2A+=(accArcsecPerSec/100.0)*r; if (guideTimerRateAxis2A>guideTimerRateAxis2) guideTimerRateAxis2A=guideTimerRateAxis2; }
+          if (guideTimerRateAxis2A>guideTimerRateAxis2) { guideTimerRateAxis2A-=(accXPerSec/100.0)*r; if (guideTimerRateAxis2A<guideTimerRateAxis2) guideTimerRateAxis2A=guideTimerRateAxis2; }
+          if (guideTimerRateAxis2A<guideTimerRateAxis2) { guideTimerRateAxis2A+=(accXPerSec/100.0)*r; if (guideTimerRateAxis2A>guideTimerRateAxis2) guideTimerRateAxis2A=guideTimerRateAxis2; }
         }
 
         // stop guiding
@@ -213,7 +213,7 @@ ISR(TIMER1_COMPA_vect)
   gotoRateAxis2=(thisTimerRateAxis2<128*16L);   // activate <128us rate
   #endif
 
-#if defined(AUTO_POWER_DOWN_AXIS2_ON) && !defined(MOUNT_TYPE_ALTAZM)
+#if defined(AXIS2_AUTO_POWER_DOWN_ON) && !defined(MOUNT_TYPE_ALTAZM)
     // ------------------------------------------------------------------------------------------------------------------------------------
     // Power down the Dec motor
     
@@ -229,9 +229,9 @@ ISR(TIMER1_COMPA_vect)
 
     // enable/disable Axis2
     if (Axis2PowerOffTimer==0) {
-      if (axis2Powered) { digitalWrite(Axis2_EN,Axis2_Disabled); axis2Powered=false; }
+      if (axis2Powered) { digitalWrite(Axis2_EN,AXIS2_DISABLE); axis2Powered=false; }
     } else {
-      if (!axis2Powered) { cli(); digitalWrite(Axis2_EN,Axis2_Enabled); axis2Powered=true; delayMicroseconds(10); sei(); }
+      if (!axis2Powered) { cli(); digitalWrite(Axis2_EN,AXIS2_ENABLE); axis2Powered=true; delayMicroseconds(10); sei(); }
     }
   } else { Axis2PowerOffTimer=0; axis2Powered=true; }
     // ------------------------------------------------------------------------------------------------------------------------------------
@@ -267,7 +267,7 @@ ISR(TIMER3_COMPA_vect)
   // switch micro-step mode
   if (gotoModeAxis1!=gotoRateAxis1) {
     // only when at an allowed position
-    if (((posAxis1+blAxis1)-trueAxis1)%AXIS1_STEP_GOTO==0) {
+    if ((gotoModeAxis1) || (((posAxis1+blAxis1)-trueAxis1)%AXIS1_STEP_GOTO==0)) {
       // switch mode
       if (gotoModeAxis1) { stepAxis1=1; modeAxis1_next=AXIS1_MODE; gotoModeAxis1=false; } else { stepAxis1=AXIS1_STEP_GOTO; modeAxis1_next=AXIS1_MODE_GOTO; gotoModeAxis1=true; }
       digitalWrite(Axis1_M0,(modeAxis1_next & 1));
@@ -288,7 +288,7 @@ ISR(TIMER3_COMPA_vect)
 
     // set direction
     if (posAxis1<(long)targetAxis1.part.m) dirAxis1=1; else dirAxis1=0;
-    #ifdef REVERSE_AXIS1_ON
+    #ifdef AXIS1_REVERSE_ON
       if (defaultDirAxis1==dirAxis1) DirPinAxis1_LOW; else DirPinAxis1_HIGH;
     #else
       if (defaultDirAxis1==dirAxis1) DirPinAxis1_HIGH; else DirPinAxis1_LOW;
@@ -336,7 +336,7 @@ ISR(TIMER4_COMPA_vect)
   // switch micro-step mode
   if (gotoModeAxis2!=gotoRateAxis2) {
     // only when at an allowed position
-    if (((posAxis2+blAxis2)-trueAxis2)%AXIS2_STEP_GOTO==0) {
+    if ((gotoModeAxis2) || (((posAxis2+blAxis2)-trueAxis2)%AXIS2_STEP_GOTO==0)) {
       // switch mode
       if (gotoModeAxis2) { stepAxis2=1; modeAxis2_next=AXIS2_MODE; gotoModeAxis2=false; } else { stepAxis2=AXIS2_STEP_GOTO; modeAxis2_next=AXIS2_MODE_GOTO; gotoModeAxis2=true; }
       digitalWrite(Axis2_M0,(modeAxis2_next & 1));
@@ -357,7 +357,7 @@ ISR(TIMER4_COMPA_vect)
     
     // set direction
     if (posAxis2<(long)targetAxis2.part.m) dirAxis2=1; else dirAxis2=0;
-    #ifdef REVERSE_AXIS2_ON
+    #ifdef AXIS2_REVERSE_ON
       if (defaultDirAxis2==dirAxis2) DirPinAxis2_LOW; else DirPinAxis2_HIGH;
     #else
       if (defaultDirAxis2==dirAxis2) DirPinAxis2_HIGH; else DirPinAxis2_LOW;

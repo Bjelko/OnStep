@@ -3,9 +3,7 @@
 // We define a more generic symbol, in case more STM32 boards based on different lines are supported
 #define __ARM_STM32__
 
-#include <EEPROM.h>
-
-// Lower limit (fastest) step rate in uS for this platform
+// Lower limit (fastest) step rate in uS for this platform -------------------------------------------
 // the exact model should be detected and these tailored to each, but this is a good starting point
 #define MaxRateLowerLimit 16
 
@@ -14,18 +12,53 @@
 // Get this library from https://github.com/watterott/Arduino-Libs/archive/master.zip
 #include <digitalWriteFast.h>
 
-// This is defined for Arduino, but not for other platforms. We use a conservative value.
-#define E2END 2047
-
 // Interrupts
 #define cli() noInterrupts()
 #define sei() interrupts()
 
 // New symbols for the Serial ports so they can be remapped if necessary -----------------------------
-#define PSerial Serial
-#define PSerial1 Serial1
-// SERIAL is always enabled SERIAL1 and SERIAL4 are optional
-#define HAL_SERIAL1_ENABLED
+#define SerialA Serial
+
+// Which port to use for WiFi?
+//
+// The hardware serial ports and pins for STM32F103 are:
+//   USART1: TX PA9,  RX PA10
+//   USART2: TX PA2,  RX PA3
+//   USART3: TX PB10, RX PB11
+
+// Different flashing methods will remap the port numbers differently, as follows.
+//
+// For DFU (STM32duino), or ST-Link V2, the ports are:
+//   Serial1 -> USART 1
+//   Serial2 -> USART 2
+//   Serial3 -> USART 3
+// If "Serial" method, using a USB to TTL dongle on pins A9 and A10, the ports are:
+//   Serial  -> USART 1
+//   Serial1 -> USART 2
+//   Serial2 -> USART 3
+#if defined(SERIAL_USB)
+  #define SerialB Serial3
+#else
+  #define SerialB Serial2
+#endif
+
+// SerialA is always enabled, SerialB and SerialC are optional
+#define HAL_SERIAL_B_ENABLED
+
+// New symbol for the default I2C port -------------------------------------------------------------
+#define HAL_Wire Wire
+
+// Non-volatile storage ------------------------------------------------------------------------------
+#if defined(NV_AT24C32)
+  #include "../drivers/NV_I2C_EEPROM_AT24C32.h"
+#elif defined(NV_MB85RC256V)
+  #include "../drivers/NV_I2C_FRAM_MB85RC256V.h"
+#else
+  #include "../drivers/NV_I2C_EEPROM_AT24C32.h"
+#endif
+
+// Use an RTC (Real Time Clock) if present -----------------------------------------------------------
+#include "../drivers/RTCw.h"
 
 //--------------------------------------------------------------------------------------------------
 // Initialize timers
@@ -36,10 +69,10 @@
 // initialised here and not in timer.ino
 void TIMER1_COMPA_vect(void);
 
-HardwareTimer itimer3(3);
+HardwareTimer Timer_Axis1(3);
 void TIMER3_COMPA_vect(void);
 
-HardwareTimer itimer4(4);
+HardwareTimer Timer_Axis2(2);
 void TIMER4_COMPA_vect(void);
 
 extern long int siderealInterval;
@@ -53,48 +86,46 @@ void HAL_Init_Timer_Sidereal() {
 // Init Axis1 and Axis2 motor timers and set their priorities
 void HAL_Init_Timers_Motor() {
   // Pause the timer while we're configuring it
-  itimer3.pause();
+  Timer_Axis1.pause();
 
-  //itimer3.setPrescaleFactor(SMT32_PRESCALER);
-  //itimer3.setOverflow(STM32_OVERFLOW);
+  //Timer_Axis1.setPrescaleFactor(SMT32_PRESCALER);
+  //Timer_Axis1.setOverflow(STM32_OVERFLOW);
   // Set up period
-  itimer3.setPeriod((float)128 * 0.0625); // in microseconds
+  Timer_Axis1.setPeriod((float)128 * 0.0625); // in microseconds
 
   // Set up an interrupt on channel 3
-  itimer3.setChannel3Mode(TIMER_OUTPUT_COMPARE);
-  itimer3.setCompare(TIMER_CH3, 1);  // Interrupt 1 count after each update
-  itimer3.attachInterrupt(TIMER_CH3, TIMER3_COMPA_vect);
+  Timer_Axis1.setChannel3Mode(TIMER_OUTPUT_COMPARE);
+  Timer_Axis1.setCompare(TIMER_CH3, 1);  // Interrupt 1 count after each update
+  Timer_Axis1.attachInterrupt(TIMER_CH3, TIMER3_COMPA_vect);
 
   // Refresh the timer's count, prescale, and overflow
-  itimer3.refresh();
+  Timer_Axis1.refresh();
 
   // Start the timer counting
-  itimer3.resume();
+  Timer_Axis1.resume();
   
   // Pause the timer while we're configuring it
-  itimer4.pause();
+  Timer_Axis2.pause();
 
-  //itimer4.setPrescaleFactor(SMT32_PRESCALER);
-  //itimer4.setOverflow(STM32_OVERFLOW);
   // Set up period
-  itimer4.setPeriod((float)128 * 0.0625); // in microseconds
+  Timer_Axis2.setPeriod((float)128 * 0.0625); // in microseconds
 
-  // Set up an interrupt on channel 4
-  itimer4.setChannel4Mode(TIMER_OUTPUT_COMPARE);
-  itimer4.setCompare(TIMER_CH4, 1);  // Interrupt 1 count after each update
-  itimer4.attachInterrupt(TIMER_CH4, TIMER4_COMPA_vect);
+  // Set up an interrupt for the channel
+  Timer_Axis2.setChannel2Mode(TIMER_OUTPUT_COMPARE);
+  Timer_Axis2.setCompare(TIMER_CH2, 1);  // Interrupt 1 count after each update
+  Timer_Axis2.attachInterrupt(TIMER_CH2, TIMER4_COMPA_vect);
 
   // Refresh the timer's count, prescale, and overflow
-  itimer4.refresh();
+  Timer_Axis2.refresh();
 
   // Start the timer counting
-  itimer4.resume();
+  Timer_Axis2.resume();
 
   // set the 1/100 second sidereal clock timer to run at the second highest priority
   nvic_irq_set_priority(NVIC_TIMER1_CC, 2);
   // set the motor timers to run at the highest priority
+  nvic_irq_set_priority(NVIC_TIMER2, 0);
   nvic_irq_set_priority(NVIC_TIMER3, 0);
-  nvic_irq_set_priority(NVIC_TIMER4, 0);
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -102,7 +133,7 @@ void HAL_Init_Timers_Motor() {
 
 #define ISR(f) void f (void)
 void TIMER1_COMPA_vect(void);
-HardwareTimer itimer1(1);
+HardwareTimer Timer_Sidereal(1);
 
 void Timer1SetInterval(long iv, double rateRatio) {
   iv=round(((double)iv)/rateRatio);
@@ -114,23 +145,21 @@ void Timer1SetInterval(long iv, double rateRatio) {
   //
   // http://docs.leaflabs.com/static.leaflabs.com/pub/leaflabs/maple-docs/0.0.12/timers.html
   // Pause the timer while we're configuring it
-  itimer1.pause();
+  Timer_Sidereal.pause();
 
-  //itimer1.setPrescaleFactor(STM32_PRESCALER);
-  //itimer1.setOverflow(STM32_OVERFLOW);
   // Set up period
-  itimer1.setPeriod((float)iv * 0.0625); // in microseconds
+  Timer_Sidereal.setPeriod((float)iv * 0.0625); // in microseconds
 
   // Set up an interrupt on channel 1
-  itimer1.setChannel1Mode(TIMER_OUTPUT_COMPARE);
-  itimer1.setCompare(TIMER_CH1, 1);  // Interrupt 1 count after each update
-  itimer1.attachInterrupt(TIMER_CH1, TIMER1_COMPA_vect);
+  Timer_Sidereal.setChannel1Mode(TIMER_OUTPUT_COMPARE);
+  Timer_Sidereal.setCompare(TIMER_CH1, 1);  // Interrupt 1 count after each update
+  Timer_Sidereal.attachInterrupt(TIMER_CH1, TIMER1_COMPA_vect);
 
   // Refresh the timer's count, prescale, and overflow
-  itimer1.refresh();
+  Timer_Sidereal.refresh();
 
   // Start the timer counting
-  itimer1.resume();
+  Timer_Sidereal.resume();
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -138,44 +167,40 @@ void Timer1SetInterval(long iv, double rateRatio) {
 
 void QuickSetIntervalAxis1(uint32_t r) {
   // Pause the timer while we're configuring it
-  itimer3.pause();
+  Timer_Axis1.pause();
 
-  //itimer3.setPrescaleFactor(STM32_PRESCALER);
-  //itimer3.setOverflow(STM32_OVERFLOW);
   // Set up period
-  itimer3.setPeriod(r); // in microseconds
+  Timer_Axis1.setPeriod(r); // in microseconds
 
   // Set up an interrupt on channel 1
-  itimer3.setChannel1Mode(TIMER_OUTPUT_COMPARE);
-  itimer3.setCompare(TIMER_CH3, 1);  // Interrupt 1 count after each update
-  itimer3.attachInterrupt(TIMER_CH3, TIMER3_COMPA_vect);
+  Timer_Axis1.setChannel3Mode(TIMER_OUTPUT_COMPARE);
+  Timer_Axis1.setCompare(TIMER_CH3, 1);  // Interrupt 1 count after each update
+  Timer_Axis1.attachInterrupt(TIMER_CH3, TIMER3_COMPA_vect);
 
   // Refresh the timer's count, prescale, and overflow
-  itimer3.refresh();
+  Timer_Axis1.refresh();
 
   // Start the timer counting
-  itimer3.resume();
+  Timer_Axis1.resume();
 }
 
 void QuickSetIntervalAxis2(uint32_t r) {
   // Pause the timer while we're configuring it
-  itimer4.pause();
+  Timer_Axis2.pause();
 
-  //itimer4.setPrescaleFactor(STM32_PRESCALER);
-  //itimer4.setOverflow(STM32_OVERFLOW);
   // Set up period
-  itimer4.setPeriod(r); // in microseconds
+  Timer_Axis2.setPeriod(r); // in microseconds
 
   // Set up an interrupt on channel 1
-  itimer4.setChannel1Mode(TIMER_OUTPUT_COMPARE);
-  itimer4.setCompare(TIMER_CH4, 1);  // Interrupt 1 count after each update
-  itimer4.attachInterrupt(TIMER_CH4, TIMER4_COMPA_vect);
+  Timer_Axis2.setChannel2Mode(TIMER_OUTPUT_COMPARE);
+  Timer_Axis2.setCompare(TIMER_CH2, 1);  // Interrupt 1 count after each update
+  Timer_Axis2.attachInterrupt(TIMER_CH2, TIMER4_COMPA_vect);
 
   // Refresh the timer's count, prescale, and overflow
-  itimer4.refresh();
+  Timer_Axis2.refresh();
 
   // Start the timer counting
-  itimer4.resume();
+  Timer_Axis2.resume();
 }
 
 // --------------------------------------------------------------------------------------------------

@@ -6,12 +6,15 @@ bool _stepperModeTrack=false;
 // initialize stepper drivers
 void StepperModeTrackingInit() {
   _stepperModeTrack=false; 
-  digitalWrite(Axis1_EN,Axis1_Enabled); axis1Enabled=true;
-  digitalWrite(Axis2_EN,Axis2_Enabled); axis2Enabled=true;
-  delay(100);
+
+  // enable stepper drivers
+  EnableStepperDrivers();
+  // program the mode
   StepperModeTracking();
-  digitalWrite(Axis1_EN,Axis1_Disabled); axis1Enabled=false;
-  digitalWrite(Axis2_EN,Axis2_Disabled); axis2Enabled=false;
+  // then wait for 100ms so TMC2100 or TMC2130 in stealthChop have time to calibrate motor current if needed (a one-time event)
+  delay(100);
+  // then disable again
+  DisableStepperDrivers();
 
 // if the stepper driver mode select pins are wired in, program any requested micro-step mode
 #if !defined(MODE_SWITCH_BEFORE_SLEW_ON) && !defined(MODE_SWITCH_BEFORE_SLEW_SPI)
@@ -35,13 +38,13 @@ void StepperModeTracking() {
   if (_stepperModeTrack) return;
   _stepperModeTrack=true;
   cli();
-#if defined(DECAY_MODE_OPEN)
+#if defined(DECAY_MODE) && (DECAY_MODE==OPEN)
   pinModeOpen(Axis1_Mode);
   pinModeOpen(Axis2_Mode);
-#elif defined(DECAY_MODE_LOW)
+#elif defined(DECAY_MODE) && (DECAY_MODE==LOW)
   pinMode(Axis1_Mode,OUTPUT); digitalWrite(Axis1_Mode,LOW);
   pinMode(Axis2_Mode,OUTPUT); digitalWrite(Axis1_Mode,LOW);
-#elif defined(DECAY_MODE_HIGH)
+#elif defined(DECAY_MODE) && (DECAY_MODE==HIGH)
   pinMode(Axis1_Mode,OUTPUT); digitalWrite(Axis1_Mode,HIGH);
   pinMode(Axis2_Mode,OUTPUT); digitalWrite(Axis2_Mode,HIGH);
 #elif defined(MODE_SWITCH_BEFORE_SLEW_ON)
@@ -90,13 +93,13 @@ void StepperModeGoto() {
   if (!_stepperModeTrack) return;
   _stepperModeTrack=false;
   cli();
-#if defined(DECAY_MODE_GOTO_OPEN)
+#if defined(DECAY_MODE_GOTO) && (DECAY_MODE_GOTO==OPEN)
   pinModeOpen(Axis1_Mode);
   pinModeOpen(Axis2_Mode);
-#elif defined(DECAY_MODE_GOTO_LOW)
+#elif defined(DECAY_MODE_GOTO) && (DECAY_MODE_GOTO==LOW)
   pinMode(Axis1_Mode,OUTPUT); digitalWrite(Axis1_Mode,LOW);
   pinMode(Axis2_Mode,OUTPUT); digitalWrite(Axis1_Mode,LOW);
-#elif defined(DECAY_MODE_GOTO_HIGH)
+#elif defined(DECAY_MODE_GOTO) && (DECAY_MODE_GOTO==HIGH)
   pinMode(Axis1_Mode,OUTPUT); digitalWrite(Axis1_Mode,HIGH);
   pinMode(Axis2_Mode,OUTPUT); digitalWrite(Axis2_Mode,HIGH);
 #elif defined(MODE_SWITCH_BEFORE_SLEW_ON)
@@ -133,4 +136,22 @@ void StepperModeGoto() {
 #endif
   sei();
 }
- 
+
+void EnableStepperDrivers() {
+  // enable the stepper drivers
+  if (axis1Enabled==false) {
+    digitalWrite(Axis1_EN,AXIS1_ENABLE); axis1Enabled=true;
+    digitalWrite(Axis2_EN,AXIS2_ENABLE); axis2Enabled=true;
+    delay(5); // enable or coming out of sleep on DRV8825 or A4988 is done in <2ms
+  }
+}
+
+void DisableStepperDrivers() {
+  // disable the stepper drivers
+  if (axis1Enabled==true) {
+    digitalWrite(Axis1_EN,AXIS1_DISABLE); axis1Enabled=false;
+    digitalWrite(Axis2_EN,AXIS2_DISABLE); axis2Enabled=false;
+    delay(5); // enable or coming out of sleep on DRV8825 or A4988 is done in <2ms
+  }
+}
+

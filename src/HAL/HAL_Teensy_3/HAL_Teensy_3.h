@@ -3,27 +3,44 @@
 // We define a more generic symbol, in case more Teensy boards based on different lines are supported
 #define __ARM_Teensy3__
 
-#include <EEPROM.h>
-
 // Lower limit (fastest) step rate in uS for this platform
 #if defined(__MK64FX512__)
   #define MaxRate_LowerLimit 12
 #elif defined(__MK66FX1M0__)
-  #define MaxRate_LowerLimit 8
+  #define MaxRate_LowerLimit 4
 #else
   #define MaxRate_LowerLimit 16
 #endif
 
 // New symbols for the Serial ports so they can be remapped if necessary -----------------------------
-#define PSerial Serial
-#define PSerial1 Serial1
-// SERIAL is always enabled SERIAL1 and SERIAL4 are optional
-#define HAL_SERIAL1_ENABLED
+#define SerialA Serial
+// SerialA is always enabled, SerialB and SerialC are optional
+#define SerialB Serial1
+#define HAL_SERIAL_B_ENABLED
 #if defined(__MK64FX512__) || defined(__MK66FX1M0__)
-#define PSerial4 Serial4
-// SERIAL is always enabled SERIAL1 and SERIAL4 are optional
-#define HAL_SERIAL4_ENABLED
+  #define SerialC Serial4
+  #define HAL_SERIAL_C_ENABLED
 #endif
+
+// New symbol for the default I2C port -------------------------------------------------------------
+#include <Wire.h>
+#if defined(__MK64FX512__) || defined(__MK66FX1M0__)
+#define HAL_Wire Wire1
+#else
+#define HAL_Wire Wire
+#endif
+
+// Non-volatile storage ------------------------------------------------------------------------------
+#if defined(NV_AT24C32)
+  #include "../drivers/NV_I2C_EEPROM_AT24C32.h"
+#elif defined(NV_MB85RC256V)
+  #include "../drivers/NV_I2C_FRAM_MB85RC256V.h"
+#else
+  #include "../drivers/NV_EEPROM.h"
+#endif
+
+// Use an RTC (Real Time Clock) if present -----------------------------------------------------------
+#include "../drivers/RTCw.h"
 
 //--------------------------------------------------------------------------------------------------
 // Initialize timers
@@ -42,6 +59,7 @@ extern void SiderealClockSetInterval (long int);
 
 // Init sidereal clock timer
 void HAL_Init_Timer_Sidereal() {
+  analogWriteResolution(8);
   SiderealClockSetInterval(siderealInterval);
 }
 

@@ -20,8 +20,8 @@
 #define ALIGN_GOTOASSIST_OFF
 
 // Default speed for Serial1 and Serial4 com ports, Default=9600
-#define SERIAL1_BAUD_DEFAULT 9600
-#define SERIAL4_BAUD_DEFAULT 9600
+#define SERIAL_B_BAUD_DEFAULT 9600
+#define SERIAL_C_BAUD_DEFAULT 9600
 
 // ESP8266 reset and GPIO0 control, this sets run mode for normal operation.  Uploading programmer firmware to the OpStep MCU can then enable sending new firmware to the ESP8266-01
 // Pin 18 (Aux1) for GPIO0 and Pin 5 (Aux2) for Rst control.  Choose only one feature on Aux1/2.
@@ -52,7 +52,8 @@
 // If the stop command is never received the guide will continue forever unless this is enabled.
 #define GUIDE_TIME_LIMIT 0
 
-// RTC (Real Time Clock) support, default=_OFF. Other options: RTC_DS3234 for a DS3234 on the default SPI interface pins (and CS on pin 10, optionally wire the SQW output to the PPS pin below.)
+// RTC (Real Time Clock) support, default=_OFF. 
+// Other options: RTC_DS3234 for a DS3234 on the default SPI interface pins (CS on pin 10) or RTC_DS3231 for a DS3231 on the default I2C pins (optionally wire the SQW output to the PPS pin below.)
 #define RTC_OFF
 // PPS use _ON or _PULLUP to enable the input and use the built-in pullup resistor.  Sense rising edge on Pin 28 for optional precision clock source (GPS, for example), default=_OFF
 #define PPS_SENSE_OFF
@@ -89,16 +90,24 @@
 // can be turned on/off with the :Tr# and :Tn# commands regardless of this setting
 #define TRACK_REFRACTION_RATE_DEFAULT_OFF
 
+// Set to _OFF and OnStep will allow Syncs to change pier side for GEM mounts (on/off), default=_ON
+#define SYNC_CURRENT_PIER_SIDE_ONLY_ON
+
 // Set to _ON and OnStep will remember the last auto meridian flip setting (on/off), default=_OFF
 #define REMEMBER_AUTO_MERIDIAN_FLIP_OFF
 
 // Set to _ON and OnStep will remember the last meridian flip pause at home setting (on/off), default=_OFF
 #define REMEMBER_PAUSE_HOME_OFF
 
+// Automatic homing; switch state changes at the home position (uses Aux3 and Aux4.)  For MOUNT_TYPE_GEM only.
+#define HOME_SENSE_OFF               // Default _OFF, use _ON to have OnStep automatically detect and use home switches as follows
+#define HOME_AXIS1_REVERSE_OFF       // Pin Aux3 state should be HIGH when clockwise of the home position (as seen from front,) LOW otherwise; reverse if necessary
+#define HOME_AXIS2_REVERSE_OFF       // Pin Aux4 state should be HIGH when clockwise of the home position (as seen from above,) LOW otherwise; reverse if necessary
+
 // ADJUST THE FOLLOWING TO MATCH YOUR MOUNT --------------------------------------------------------------------------------
 #define REMEMBER_MAX_RATE_OFF        // set to _ON and OnStep will remember rates set in the ASCOM driver, Android App, etc. default=_OFF 
-#define MaxRate                   96 // this is the number of micro-seconds between micro-steps default setting and can be adjusted for two times lower or higher at run-time
-                                     // minimum* (fastest goto) is around 12 (Teensy3.5,) 8 (Teensy3.6,) default=96 higher is ok
+#define MaxRate                   96 // microseconds per microstep default setting for gotos, can be adjusted for two times lower or higher at run-time
+                                     // minimum* (fastest goto) is around 12 (Teensy3.5,) 4 (Teensy3.6,) default=96 higher is ok
                                      // * = minimum can be lower, when both AXIS1/AXIS2_MICROSTEPS are used the compiler will warn you if it's too low
 
 #define DegreesForAcceleration   5.0 // approximate number of degrees for full acceleration or deceleration: higher values=longer acceleration/deceleration
@@ -143,17 +152,17 @@
 // Axis2: Pins  3, 2 = Step,Dir (Dec/Alt)
 
 // Reverse the direction of movement.  Adjust as needed or reverse your wiring so things move in the right direction
-#define REVERSE_AXIS1_OFF            // RA/Azm axis
-#define REVERSE_AXIS2_OFF            // Dec/Alt axis
+#define AXIS1_REVERSE_OFF            // RA/Azm axis
+#define AXIS2_REVERSE_OFF            // Dec/Alt axis
 
 // Stepper driver Enable support, just wire Enable to Pins 14 (Axis1) and 9 (Axis2) and OnStep will pull these HIGH to disable the stepper drivers on startup and when Parked or Homed.  
 // An Align, Sync, or Un-Park will enable the drivers.  Adjust below if you need these pulled LOW to disable the drivers.
-#define AXIS1_DISABLED_HIGH
-#define AXIS2_DISABLED_HIGH
+#define AXIS1_DISABLE HIGH
+#define AXIS2_DISABLE HIGH
 
 // For equatorial mounts, _ON powers down the Declination axis when it's not being used to help lower power use.  During low rate guiding (<=1x) the axis stays enabled
 // for 10 minutes after any guide on either axis.  Otherwise, the Dec axis is disabled (powered off) 10 seconds after movement stops.
-#define AUTO_POWER_DOWN_AXIS2_OFF
+#define AXIS2_AUTO_POWER_DOWN_OFF
 
 // Basic stepper driver mode setup . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
 // If used, this requires connections M0, M1, and M2 on Pins 15,16,17 for Axis1 (RA/Azm) and Pins 8,7,6 for Axis2 (Dec/Alt.)
@@ -167,8 +176,8 @@
 #define AXIS2_MICROSTEPS_GOTO_OFF   // Axis2 (Dec/Alt): Default _OFF, Optional microstep mode used during gotos
 // Note: you can replace this section with the contents of "AdvancedStepperSetup.txt" . . . . . . . . . . . . . . . . . . . 
 
-// Stepper driver Fault detection on Pins 18 (Aux1) and 5 (Aux2,) choose only one feature to use on Aux1/2.
-// other settings are LOW, HIGH, SPI (Teensy3.2 applies internal pullup if _LOW and pulldown if _HIGH.)  The SPI interface (on M0/M1/M2/Aux) can be used to detect errors on the TMC2130.
+// Stepper driver Fault detection on Pins 18 (Aux1) and 5 (Aux2,) choose only one feature to use on Aux1/2.  The SPI interface (on M0/M1/M2/Aux) can be used to detect errors on the TMC2130.
+// other settings are LOW, HIGH, TMC2130 (if available applies internal pullup if LOW and pulldown if HIGH.)
 #define AXIS1_FAULT_OFF
 #define AXIS2_FAULT_OFF
 
@@ -181,35 +190,35 @@
                                      // Rotator          :  24            * 8           * 20              *  6/360                = 64
                                      // For de-rotation of Alt/Az mounts a quick estimate of the required resolution (in StepsPerDegree)
                                      // would be an estimate of the circumference of the useful imaging circle in (pixels * 2)/360
-#define REVERSE_AXIS3_OFF            // reverse the direction of Axis3 rotator movement
-#define DISABLE_AXIS3_OFF            // Pin 36 (Aux3.)  Use HIGH for common stepper drivers if you want to power down the motor at stand-still.  Default _OFF.
 #define MinAxis3                -180 // minimum allowed Axis3 rotator, default = -180
 #define MaxAxis3                 180 // maximum allowed Axis3 rotator, default =  180
+#define AXIS3_REVERSE_OFF            // reverse the direction of Axis3 rotator movement
+#define AXIS3_DISABLE_OFF            // Pin 36 (Aux3.)  Use HIGH for common stepper drivers if you want to power down the motor at stand-still.  Default _OFF.
 
 // FOCUSER1 ---------------------------------------------------------------------------------------------------------------
 // Pins 34,35 = Step,Dir
 #define FOCUSER1_OFF                 // enable or disable focuser feature, default=_OFF
 #define MaxRateAxis4               8 // this is the minimum number of milli-seconds between micro-steps, default=8
 #define StepsPerMicrometerAxis4  0.5 // figure this out by testing or other means
-#define REVERSE_AXIS4_OFF            // reverse the direction of Axis4 focuser movement
-#define DISABLE_AXIS4_OFF            // Pin 39 (Aux4.)  Use HIGH for common stepper drivers if you want to power down the motor at stand-still.  Default _OFF.
 #define MinAxis4               -25.0 // minimum allowed Axis4 position in millimeters, default = -25.0
 #define MaxAxis4                25.0 // maximum allowed Axis4 position in millimeters, default =  25.0
+#define AXIS4_REVERSE_OFF            // reverse the direction of Axis4 focuser movement
+#define AXIS4_DISABLE_OFF            // Pin 39 (Aux4.)  Use HIGH for common stepper drivers if you want to power down the motor at stand-still.  Default _OFF.
 
 // FOCUSER2 ---------------------------------------------------------------------------------------------------------------
 // Pins 30,33 = Step,Dir (choose either this option or the rotator, not both) 
 #define FOCUSER2_OFF                 // enable or disable focuser feature, default=_OFF
 #define MaxRateAxis5               8 // this is the minimum number of milli-seconds between micro-steps, default=8
 #define StepsPerMicrometerAxis5  0.5 // figure this out by testing or other means
-#define REVERSE_AXIS5_OFF            // reverse the direction of Axis5 focuser movement
-#define DISABLE_AXIS5_OFF            // Pin 36 (Aux3.)  Use HIGH for common stepper drivers if you want to power down the motor at stand-still.  Default _OFF.
 #define MinAxis5               -25.0 // minimum allowed Axis5 position in millimeters, default = -25.0
 #define MaxAxis5                25.0 // maximum allowed Axis5 position in millimeters, default =  25.0
+#define AXIS5_REVERSE_OFF            // reverse the direction of Axis5 focuser movement
+#define AXIS5_DISABLE_OFF            // Pin 36 (Aux3.)  Use HIGH for common stepper drivers if you want to power down the motor at stand-still.  Default _OFF.
 
 // THAT'S IT FOR USER CONFIGURATION!
 
 // -------------------------------------------------------------------------------------------------------------------------
-#define FileVersionConfig 1
-#include "Pins.MaxPCB.h"
+#define FileVersionConfig 2
+#include "src/pinmaps/Pins.MaxPCB.h"
 #endif
 

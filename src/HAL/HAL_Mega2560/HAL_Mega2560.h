@@ -1,7 +1,5 @@
 // Platform setup ------------------------------------------------------------------------------------
 
-#include <EEPROM.h>
-
 // This platform doesn't support true double precision math
 #define HAL_NO_DOUBLE_PRECISION
 
@@ -13,12 +11,42 @@
 #define MaxRateLowerLimit 32
 
 // New symbols for the Serial ports so they can be remapped if necessary -----------------------------
-// Use low overhead serial
-#include "HAL_Serial.h"
-// SERIAL is always enabled SERIAL1 and SERIAL4 are optional
-#define HAL_SERIAL1_ENABLED
-// this tells OnStep that a .transmit() method needs to be called to send data
-#define HAL_SERIAL_TRANSMIT
+#ifndef MEGA2560_ARDUINO_SERIAL_ON
+  // Use low overhead serial
+  #include "HAL_Serial.h"
+  // SerialA is always enabled, SerialB and SerialC are optional
+  #define HAL_SERIAL_B_ENABLED
+  // this tells OnStep that a .transmit() method needs to be called to send data
+  #define HAL_SERIAL_TRANSMIT
+#else
+  // New symbols for the Serial ports so they can be remapped if necessary -----------------------------
+  #define SerialA Serial
+  // SerialA is always enabled, SerialB and SerialC are optional
+  #define SerialB Serial1
+  // SerialA is always enabled, SerialB and SerialC are optional
+  #define HAL_SERIAL_B_ENABLED
+#endif
+
+// New symbol for the default I2C port -------------------------------------------------------------
+#define HAL_Wire Wire
+
+// Non-volatile storage ------------------------------------------------------------------------------
+#if defined(NV_AT24C32)
+  #ifdef E2END
+    #undef E2END
+  #endif
+  #include "../drivers/NV_I2C_EEPROM_AT24C32.h"
+#elif defined(NV_MB85RC256V)
+  #ifdef E2END
+    #undef E2END
+  #endif
+  #include "../drivers/NV_I2C_FRAM_MB85RC256V.h"
+#else
+  #include "../drivers/NV_EEPROM.h"
+#endif
+
+// Use an RTC (Real Time Clock) if present -----------------------------------------------------------
+#include "../drivers/RTCw.h"
 
 //--------------------------------------------------------------------------------------------------
 // Initialize timers

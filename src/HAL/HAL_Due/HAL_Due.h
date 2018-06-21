@@ -3,21 +3,30 @@
 // We define a more generic symbol, in case more Teensy boards based on different lines are supported
 // __SAM3X8E__
 
-// The full EEPROM size for a 24LC256 causes problems, so we use a smaller one
-//#define E2END 32767
-#define E2END 8191
-
-// OnStep needs EEPROM, the DUE doesn't have it and the flash eeprom libraries are limited so use an I2C 
-#include "../drivers/HAL_24LC.h"
-
-// Lower limit (fastest) step rate in uS for this platform
+// Lower limit (fastest) step rate in uS for this platform -------------------------------------------
 #define MaxRate_LowerLimit 16
 
 // New symbols for the Serial ports so they can be remapped if necessary -----------------------------
-#define PSerial Serial
-#define PSerial1 Serial1
-// SERIAL is always enabled SERIAL1 and SERIAL4 are optional
-#define HAL_SERIAL1_ENABLED
+#define SerialA Serial
+#define SerialB Serial1
+// SerialA is always enabled, SerialB and SerialC are optional
+#define HAL_SERIAL_B_ENABLED
+
+// New symbol for the default I2C port ---------------------------------------------------------------
+#include <Wire.h>
+#define HAL_Wire Wire
+
+// Non-volatile storage ------------------------------------------------------------------------------
+#if defined(NV_AT24C32)
+  #include "../drivers/NV_I2C_EEPROM_AT24C32.h"
+#elif defined(NV_MB85RC256V)
+  #include "../drivers/NV_I2C_FRAM_MB85RC256V.h"
+#else
+  #include "../drivers/NV_I2C_EEPROM_AT24C32.h"
+#endif
+
+// Use an RTC (Real Time Clock) if present -----------------------------------------------------------
+#include "../drivers/RTCw.h"
 
 // Get this library from https://github.com/ivanseidel/DueTimer
 #include <DueTimer.h>

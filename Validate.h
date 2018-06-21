@@ -1,6 +1,8 @@
 // -----------------------------------------------------------------------------------
 // Validate current configuration
 
+#pragma once
+
 #ifdef Classic_ON
   #define Configuration_Found
 #endif
@@ -39,14 +41,27 @@
     #define Configuration_Found
   #endif
 #endif
-#ifdef STM32_ON
+#ifdef STM32CZ_ON
   #ifdef Configuration_Found
     #define Configuration_Duplicate
   #else
     #define Configuration_Found
   #endif
 #endif
-
+#ifdef STM32Black_ON
+  #ifdef Configuration_Found
+    #define Configuration_Duplicate
+  #else
+    #define Configuration_Found
+  #endif
+#endif
+#ifdef STM32Blue_ON
+  #ifdef Configuration_Found
+    #define Configuration_Duplicate
+  #else
+    #define Configuration_Found
+  #endif
+#endif
 #ifdef Configuration_Duplicate
   #error "You have more than one Config.xxx.h file enabled, ONLY ONE can be enabled with _ON."
 #endif
@@ -55,24 +70,27 @@
   #error "Choose ONE Config.xxx.h file and enable it for use by turning it _ON."
 #endif
 
-// -----------------------------------------------------------------------------------
 // configuration file version
 
 #ifdef FileVersionConfig
   #if FileVersionConfig < FirmwareVersionConfig
-    #error "Configuration: There have been changes to the configuration file format.  You'll have to make a new Config.xxx.h file."
+    // firmware version 2 is compatible with file version 1
+    #if (FileVersionConfig==1) && (FirmwareVersionConfig==2)
+      #warning "Configuration: There have been changes to the configuration file format, but OnStep is still backwards compatible for now."
+    #else
+      #error "Configuration: There have been changes to the configuration file format.  You'll have to make a new Config.xxx.h file."
+    #endif
   #elif FileVersionConfig > FirmwareVersionConfig
     #error "Configuration: Configuration file version mismatch."
   #endif
 #else
-  #if FirmwareVersionConfig == 1
+  #if (FirmwareVersionConfig == 1) || (FirmwareVersionConfig == 2)
     #warning "Configuration: Config.xxx.h file version isn't specified (pre-version 1?)"
   #else
     #error "Configuration: There have been changes to the configuration file format.  You'll have to make a new Config.xxx.h file."
   #endif
 #endif
 
-// -----------------------------------------------------------------------------------
 // misc.
 
 #if defined(ALTERNATE_PINMAP_ON)
@@ -83,21 +101,128 @@
   #error "Focuser2 can't be enabled without first enabling Focuser1"
 #endif
 
-#if defined(MaxPCB) || defined(MiniPCB)
-  #if defined(RETICULE_LED_PINS) && (defined(STATUS_LED_PINS_ON) || defined(STATUS_LED_PINS))
+#if defined(MaxPCB_ON) || defined(MiniPCB_ON)
+  #if defined(RETICULE_LED_PINS) && defined(STATUS_LED_PINS2_ON)
     #error "You can't have the Illuminated Reticule and Status2 LEDs both enabled in this configuration."
   #endif
 #endif
 
 // -----------------------------------------------------------------------------------
+// misc. configuration #defines to correct for backwards compatability etc.
+
+// set serial port baud rate the old way
+#ifdef SERIAL1_BAUD_DEFAULT
+  #define SERIAL_B_BAUD_DEFAULT SERIAL1_BAUD_DEFAULT
+#endif
+#ifdef SERIAL4_BAUD_DEFAULT
+  #define SERIAL_C_BAUD_DEFAULT SERIAL4_BAUD_DEFAULT
+#endif
+
+// config pre-version 1
+#ifdef SEPERATE_PULSE_GUIDE_RATE_ON
+  #define SEPARATE_PULSE_GUIDE_RATE_ON
+#endif
+#ifndef MaxRot
+  #define MaxRot MaxAxis3
+#endif
+#ifndef MinRot
+  #define MinRot MinAxis3
+#endif
+
+// config version 1
+#ifdef REVERSE_AXIS1_ON
+  #define AXIS1_REVERSE_ON
+#endif
+#ifdef REVERSE_AXIS2_ON
+  #define AXIS2_REVERSE_ON
+#endif
+#ifdef REVERSE_AXIS3_ON
+  #define AXIS3_REVERSE_ON
+#endif
+#ifdef REVERSE_AXIS4_ON
+  #define AXIS4_REVERSE_ON
+#endif
+#ifdef REVERSE_AXIS5_ON
+  #define AXIS5_REVERSE_ON
+#endif
+#ifndef AXIS1_DISABLE
+  #if defined(AXIS1_DISABLED_HIGH)
+    #define AXIS1_DISABLE HIGH
+  #endif
+  #if defined(AXIS1_DISABLED_LOW)
+    #define AXIS1_DISABLE LOW
+  #endif
+#endif
+#ifndef AXIS2_DISABLE
+  #if defined(AXIS2_DISABLED_HIGH)
+    #define AXIS2_DISABLE HIGH
+  #endif
+  #if defined(AXIS2_DISABLED_LOW)
+    #define AXIS2_DISABLE LOW
+  #endif
+#endif
+#ifdef DISABLE_AXIS3
+  #define AXIS3_DISABLE DISABLE_AXIS3
+#endif
+#ifdef DISABLE_AXIS4
+  #define AXIS3_DISABLE DISABLE_AXIS4
+#endif
+#ifdef DISABLE_AXIS5
+  #define AXIS3_DISABLE DISABLE_AXIS5
+#endif
+#ifdef AXIS1_FAULT_SPI
+#define AXIS1_FAULT TMC2130
+#endif
+#ifdef AXIS1_FAULT_LOW
+#define AXIS1_FAULT LOW
+#endif
+#ifdef AXIS1_FAULT_HIGH
+#define AXIS1_FAULT HIGH
+#endif
+#ifdef AXIS2_FAULT_SPI
+#define AXIS2_FAULT TMC2130
+#endif
+#ifdef AXIS2_FAULT_LOW
+#define AXIS2_FAULT LOW
+#endif
+#ifdef AXIS2_FAULT_HIGH
+#define AXIS2_FAULT HIGH
+#endif
+#ifdef AUTO_POWER_DOWN_AXIS2_ON
+#define AXIS2_AUTO_POWER_DOWN_ON
+#endif
+#ifdef DECAY_MODE_LOW
+#define DECAY_MODE LOW
+#endif
+#ifdef DECAY_MODE_HIGH
+#define DECAY_MODE HIGH
+#endif
+#ifdef DECAY_MODE_OPEN
+#define DECAY_MODE OPEN
+#endif
+#ifdef DECAY_MODE_GOTO_LOW
+#define DECAY_MODE_GOTO LOW
+#endif
+#ifdef DECAY_MODE_GOTO_HIGH
+#define DECAY_MODE_GOTO HIGH
+#endif
+#ifdef DECAY_MODE_GOTO_OPEN
+#define DECAY_MODE_GOTO OPEN
+#endif
+
+// -----------------------------------------------------------------------------------
 // setup defaults
 
-// set serial port baud rate if not done so already
-#ifndef SERIAL1_BAUD_DEFAULT
-  #define SERIAL1_BAUD_DEFAULT 9600
+#ifndef GUIDE_TIME_LIMIT
+  #define GUIDE_TIME_LIMIT 0
 #endif
-#ifndef SERIAL4_BAUD_DEFAULT
-  #define SERIAL4_BAUD_DEFAULT 9600
+
+// set serial port baud rate if not done so already
+#ifndef SERIAL_B_BAUD_DEFAULT
+  #define SERIAL_B_BAUD_DEFAULT 9600
+#endif
+#ifndef SERIAL_C_BAUD_DEFAULT
+  #define SERIAL_C_BAUD_DEFAULT 9600
 #endif
 
 // figure out how many align star are allowed for the configuration
@@ -123,18 +248,18 @@
   #endif
 #endif
 
-// misc. configuration #defines to correct for backwards compatability etc.
-#ifdef SEPERATE_PULSE_GUIDE_RATE_ON
-  #define SEPARATE_PULSE_GUIDE_RATE_ON
+// make both enable and disable values
+#if AXIS1_DISABLE==LOW
+  #define AXIS1_ENABLE HIGH
 #endif
-#ifndef GUIDE_TIME_LIMIT
-  #define GUIDE_TIME_LIMIT 0
+#if AXIS1_DISABLE==HIGH
+  #define AXIS1_ENABLE LOW
 #endif
-#ifndef MaxRot
-  #define MaxRot MaxAxis3
+#if AXIS2_DISABLE==LOW
+  #define AXIS2_ENABLE HIGH
 #endif
-#ifndef MinRot
-  #define MinRot MinAxis3
+#if AXIS2_DISABLE==HIGH
+  #define AXIS2_ENABLE LOW
 #endif
 
 // -----------------------------------------------------------------------------------
@@ -304,8 +429,11 @@
         #error "Configuration: AXIS1_MICROSTEPS_GOTO; must be set to the same value as AXIS1_MICROSTEPS,or _OFF"
       #endif
     #elif AXIS1_DRIVER_MODEL == TMC2130
+      #if AXIS1_MICROSTEPS_GOTO!=1 && AXIS1_MICROSTEPS_GOTO!=2 && AXIS1_MICROSTEPS_GOTO!=4 && AXIS1_MICROSTEPS_GOTO!=8 && AXIS1_MICROSTEPS_GOTO!=16 && AXIS1_MICROSTEPS_GOTO!=32 && AXIS1_MICROSTEPS_GOTO!=64 && AXIS1_MICROSTEPS_GOTO!=128 && AXIS1_MICROSTEPS_GOTO!=256
+        #error "Configuration: AXIS1_MICROSTEPS_GOTO; TMC2130 invalid micro-step mode, use: 256,128,64,32,16,8,4,2,or 1"
+      #endif
       #if AXIS1_MICROSTEPS != AXIS1_MICROSTEPS_GOTO
-        #error "Configuration: AXIS1_MICROSTEPS_GOTO; must be set to the same value as AXIS1_MICROSTEPS,or _OFF"
+        #warning "Configuration: AXIS2_MICROSTEPS_GOTO; is NOT equal to AXIS2_MICROSTEPS,or _OFF.  This can effect pointing accuracy slightly (and PEC if index sensing isn't used.)"
       #endif
     #elif AXIS1_DRIVER_MODEL == TMC2208
       #if AXIS1_MICROSTEPS_GOTO!=2 && AXIS1_MICROSTEPS_GOTO!=4 && AXIS1_MICROSTEPS_GOTO!=8 && AXIS1_MICROSTEPS_GOTO!=16
@@ -342,8 +470,11 @@
         #error "Configuration: AXIS2_MICROSTEPS_GOTO; must be set to the same value as AXIS2_MICROSTEPS,or _OFF"
       #endif
     #elif AXIS2_DRIVER_MODEL == TMC2130
-      #if AXIS2_MICROSTEPS!=AXIS2_MICROSTEPS_GOTO
-        #error "Configuration: AXIS2_MICROSTEPS_GOTO; must be set to the same value as AXIS2_MICROSTEPS,or _OFF"
+      #if AXIS2_MICROSTEPS_GOTO!=1 && AXIS2_MICROSTEPS_GOTO!=2 && AXIS2_MICROSTEPS_GOTO!=4 && AXIS2_MICROSTEPS_GOTO!=8 && AXIS2_MICROSTEPS_GOTO!=16 && AXIS2_MICROSTEPS_GOTO!=32 && AXIS2_MICROSTEPS_GOTO!=64 && AXIS2_MICROSTEPS_GOTO!=128 && AXIS2_MICROSTEPS_GOTO!=256
+        #error "Configuration: AXIS2_MICROSTEPS_GOTO; TMC2130 invalid micro-step mode, use: 256,128,64,32,16,8,4,2,or 1"
+      #endif
+      #if AXIS2_MICROSTEPS != AXIS2_MICROSTEPS_GOTO
+        #warning "Configuration: AXIS2_MICROSTEPS_GOTO; is NOT equal to AXIS2_MICROSTEPS,or _OFF.  This can effect pointing accuracy slightly (and PEC if index sensing isn't used.)"
       #endif
     #elif AXIS2_DRIVER_MODEL == TMC2208
       #if AXIS2_MICROSTEPS_GOTO!=2 && AXIS2_MICROSTEPS_GOTO!=4 && AXIS2_MICROSTEPS_GOTO!=8 && AXIS2_MICROSTEPS_GOTO!=16
@@ -395,7 +526,7 @@
 // warn the user not to have MISO wired up and try to use ESP8266 control too
 #if defined(ESP8266_CONTROL_ON) && defined(MODE_SWITCH_BEFORE_SLEW_SPI)
   #warning "Configuration: be sure the Aux1 and Aux2 pins are wired into the ESP8266 GPIO0 and RST pins and **NOT** the SSS TMC2130 SDO pins"
-  #if defined(AXIS1_FAULT_SPI) || defined(AXIS2_FAULT_SPI)
+  #if (AXIS1_FAULT==TMC2130) || (AXIS2_FAULT==TMC2130)
     #error "Configuration: Fault detection across SPI conflicts with ESP8266 control, choose one feature and wire for it correctly"
   #endif
 #endif

@@ -305,21 +305,21 @@ void TGeoAlign::init() {
 
 // remember the alignment between sessions
 void TGeoAlign::readCoe() {
-  dfCor=EEPROM_readFloat(EE_dfCor);  // dfCor is ffCor for fork mounts
-  tfCor=EEPROM_readFloat(EE_tfCor);
-  doCor=EEPROM_readFloat(EE_doCor);
-  pdCor=EEPROM_readFloat(EE_pdCor);
-  altCor=EEPROM_readFloat(EE_altCor);
-  azmCor=EEPROM_readFloat(EE_azmCor);
+  dfCor=nv.readFloat(EE_dfCor);  // dfCor is ffCor for fork mounts
+  tfCor=nv.readFloat(EE_tfCor);
+  doCor=nv.readFloat(EE_doCor);
+  pdCor=nv.readFloat(EE_pdCor);
+  altCor=nv.readFloat(EE_altCor);
+  azmCor=nv.readFloat(EE_azmCor);
 }
 
 void TGeoAlign::writeCoe() {
-  EEPROM_writeFloat(EE_dfCor,dfCor);  // dfCor is ffCor for fork mounts
-  EEPROM_writeFloat(EE_tfCor,tfCor);
-  EEPROM_writeFloat(EE_doCor,doCor);
-  EEPROM_writeFloat(EE_pdCor,pdCor);
-  EEPROM_writeFloat(EE_altCor,altCor);
-  EEPROM_writeFloat(EE_azmCor,azmCor);
+  nv.writeFloat(EE_dfCor,dfCor);  // dfCor is ffCor for fork mounts
+  nv.writeFloat(EE_tfCor,tfCor);
+  nv.writeFloat(EE_doCor,doCor);
+  nv.writeFloat(EE_pdCor,pdCor);
+  nv.writeFloat(EE_altCor,altCor);
+  nv.writeFloat(EE_azmCor,azmCor);
 }
 
 // Status
@@ -351,7 +351,7 @@ bool TGeoAlign::addStar(int I, int N, double RA, double Dec) {
   AlignStars[I-1].HA =haRange(LST()*15.0-RA);
   AlignStars[I-1].Dec=Dec;
   AlignStars[I-1].HA1=((double)(long)targetAxis1.part.m)/(double)StepsPerDegreeAxis1;
-  AlignStars[I-1].Dec=((double)(long)targetAxis2.part.m)/(double)StepsPerDegreeAxis2;
+  AlignStars[I-1].Dec1=((double)(long)targetAxis2.part.m)/(double)StepsPerDegreeAxis2;
   sei();
 
   // two or more stars and finished
@@ -446,43 +446,52 @@ void TGeoAlign::EquToInstr(double Lat, double HA, double Dec, double *HA1, doubl
 
   // breaks-down near the pole (limited to >1' from pole)
   if (abs(Dec)<89.98333333) {
-    double h =HA/Rad;
-    double d =Dec/Rad;
-    double sinDec=sin(d);
-    double cosDec=cos(d);
-    double sinHA =sin(h);
-    double cosHA =cos(h);
-    double p=1.0; if (pierSide==PierSideWest) p=-1.0;
 
-    // ------------------------------------------------------------
-    // misalignment due to tube/optics not being perp. to Dec axis
-    // negative numbers are further (S) from the NCP, swing to the
-    // equator and the effect on declination is 0. At the SCP it
-    // becomes a (N) offset.  Unchanged with meridian flips.
-    // expressed as a correction to the Polar axis misalignment
-    double DOh=doCor*(1.0/cosDec)*p;
+    // initial rough guess at instrument HA,Dec
+    double h=HA/Rad;
+    double d=Dec/Rad;
+    
+    for (int pass=0; pass<3; pass++) {
+      double sinDec=sin(d);
+      double cosDec=cos(d);
+      double sinHA =sin(h);
+      double cosHA =cos(h);
+      double p=1.0; if (pierSide==PierSideWest) p=-1.0;
+  
+      // ------------------------------------------------------------
+      // misalignment due to tube/optics not being perp. to Dec axis
+      // negative numbers are further (S) from the NCP, swing to the
+      // equator and the effect on declination is 0. At the SCP it
+      // becomes a (N) offset.  Unchanged with meridian flips.
+      // expressed as a correction to the Polar axis misalignment
+      double DOh=doCor*(1.0/cosDec)*p;
+  
+      // ------------------------------------------------------------
+      // misalignment due to Dec axis being perp. to RA axis
+      double PDh=-pdCor*(sinDec/cosDec)*p;
+  
+  #if defined (MOUNT_TYPE_FORK) || defined(MOUNT_TYPE_FORK_ALT)
+      // Fork flex
+      double DFd=dfCor*cosHA;
+  #else
+      // Axis flex
+      double DFd=-dfCor*(cosLat*cosHA+sinLat*(sinDec/cosDec));
+  #endif
+  
+      // Tube flex
+      double TFh=tfCor*(cosLat*sinHA*(1.0/cosDec));
+      double TFd=tfCor*(cosLat*cosHA-sinLat*cosDec);
+  
+      // polar misalignment
+      double h1=-azmCor*cosHA*(sinDec/cosDec) + altCor*sinHA*(sinDec/cosDec);
+      double d1=+azmCor*sinHA                 + altCor*cosHA;
+      *HA1 =HA +(h1+PDh+DOh+TFh);
+      *Dec1=Dec+(d1+DFd+TFd);
 
-    // ------------------------------------------------------------
-    // misalignment due to Dec axis being perp. to RA axis
-    double PDh=-pdCor*(sinDec/cosDec)*p;
-
-#if defined (MOUNT_TYPE_FORK) || defined(MOUNT_TYPE_FORK_ALT)
-    // Fork flex
-    double DFd=dfCor*cosHA;
-#else
-    // Axis flex
-    double DFd=-dfCor*(cosLat*cosHA+sinLat*(sinDec/cosDec));
-#endif
-
-    // Tube flex
-    double TFh=tfCor*(cosLat*sinHA*(1.0/cosDec));
-    double TFd=tfCor*(cosLat*cosHA-sinLat*cosDec);
-
-    // polar misalignment
-    double h1=-azmCor*cosHA*(sinDec/cosDec) + altCor*sinHA*(sinDec/cosDec);
-    double d1=+azmCor*sinHA                 + altCor*cosHA;
-    *HA1 =HA +(h1+PDh+DOh+TFh);
-    *Dec1=Dec+(d1+DFd+TFd);
+      // improved guess at instrument HA,Dec
+      h=*HA1/Rad;
+      d=*Dec1/Rad;
+    }
   } else {
     // just ignore the the correction if right on the pole
     *HA1 =HA;
@@ -609,21 +618,21 @@ void TGeoAlign::init() {
 
 // remember the alignment between sessions
 void TGeoAlign::readCoe() {
-  dfCor=EEPROM_readFloat(EE_dfCor);  // dfCor is ffCor for fork mounts
-  tfCor=EEPROM_readFloat(EE_tfCor);
-  doCor=EEPROM_readFloat(EE_doCor);
-  pdCor=EEPROM_readFloat(EE_pdCor);
-  altCor=EEPROM_readFloat(EE_altCor);
-  azmCor=EEPROM_readFloat(EE_azmCor);
+  dfCor=nv.readFloat(EE_dfCor);  // dfCor is ffCor for fork mounts
+  tfCor=nv.readFloat(EE_tfCor);
+  doCor=nv.readFloat(EE_doCor);
+  pdCor=nv.readFloat(EE_pdCor);
+  altCor=nv.readFloat(EE_altCor);
+  azmCor=nv.readFloat(EE_azmCor);
 }
 
 void TGeoAlign::writeCoe() {
-  EEPROM_writeFloat(EE_dfCor,dfCor);  // dfCor is ffCor for fork mounts
-  EEPROM_writeFloat(EE_tfCor,tfCor);
-  EEPROM_writeFloat(EE_doCor,doCor);
-  EEPROM_writeFloat(EE_pdCor,pdCor);
-  EEPROM_writeFloat(EE_altCor,altCor);
-  EEPROM_writeFloat(EE_azmCor,azmCor);
+  nv.writeFloat(EE_dfCor,dfCor);  // dfCor is ffCor for fork mounts
+  nv.writeFloat(EE_tfCor,tfCor);
+  nv.writeFloat(EE_doCor,doCor);
+  nv.writeFloat(EE_pdCor,pdCor);
+  nv.writeFloat(EE_altCor,altCor);
+  nv.writeFloat(EE_azmCor,azmCor);
 }
 
 // Status
@@ -668,28 +677,26 @@ bool TGeoAlign::addStar(int I, int N, double RA, double Dec) {
 #ifdef GOTO_ASSIST_DEBUG_ON
   char s[80];
   double f;
-  PSerial.putch(I-1+'0');
-  PSerial.puts(" Mount h");
-  f=mount[I-1].ha*Rad/15.0; if (f<0) f=f+24.0; doubleToHms(s,&f); PSerial.puts(s);
-  PSerial.puts(",d");
-  f=mount[I-1].dec*Rad; doubleToDms(s,&f,false,true); PSerial.puts(s);
-  PSerial.puts("   Actual h");
-  f=actual[I-1].ha*Rad/15.0; if (f<0) f=f+24.0; doubleToHms(s,&f); PSerial.puts(s);
-  PSerial.puts(",d");
-  f=actual[I-1].dec*Rad; doubleToDms(s,&f,false,true); PSerial.puts(s);
-  PSerial.puts("\r\n");
+  D((char)(I-1+'0'));
+  D(" Mount h");
+  f=mount[I-1].ha*Rad/15.0; if (f<0) f=f+24.0; doubleToHms(s,&f); D(s);
+  D(",d");
+  f=mount[I-1].dec*Rad; doubleToDms(s,&f,false,true); D(s);
+  D("   Actual h");
+  f=actual[I-1].ha*Rad/15.0; if (f<0) f=f+24.0; doubleToHms(s,&f); D(s);
+  D(",d");
+  f=actual[I-1].dec*Rad; doubleToDms(s,&f,false,true); DL(s);
 #endif
 
   // two or more stars and finished
   if ((I>=2) && (I==N)) {
 #ifdef GOTO_ASSIST_DEBUG_ON
-    PSerial.puts("\r\n");
+    DL("");
 #endif
     autoModel(N);
  //   if (syncEqu(RA,Dec)!=0) { return false; }
     geo_ready=true;
   }
-
 
   return true;
 }
@@ -922,11 +929,10 @@ void TGeoAlign::autoModel(int n) {
   tfCor=best_tf/3600.0;
 
 #ifdef GOTO_ASSIST_DEBUG_ON
-  PSerial.puts("\r\n");
+  DL("");
   char s[80];
-  PSerial.puts("Model Error  =");
-  dtostrf(best_dist*Rad*60.0,6,2,s); PSerial.puts(s);
-  PSerial.puts("\r\n");
+  D("Model Error  =");
+  dtostrf(best_dist*Rad*60.0,6,2,s); DL(s);
 #endif
 
   // offset corrections: doesn't matter, a sync will override this

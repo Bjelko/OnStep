@@ -1,11 +1,12 @@
 // -----------------------------------------------------------------------------------
 // Global variables 
 
+#pragma once
+
 // Time keeping ------------------------------------------------------------------------------------------------------------
 long siderealTimer    = 0;           // counter to issue steps during tracking
 long PecSiderealTimer = 0;           // time since worm wheel zero index for PEC
 long guideSiderealTimer=0;           // counter to issue steps during guiding
-unsigned long housekeepingTimer;     // counter for timing housekeeping
 
 double UT1       = 0.0;              // the current universal time
 double UT1_start = 0.0;              // the start of UT1
@@ -41,19 +42,17 @@ volatile double LastPPSrateRatio = 1.0;
 volatile boolean PPSsynced = false;
 
 // Tracking and rate control -----------------------------------------------------------------------------------------------
-#ifdef MOUNT_TYPE_ALTAZM
-#define refraction_enable false      // refraction isn't allowed in Alt/Azm mode
+#ifndef MOUNT_TYPE_ALTAZM
+  enum RateCompensation {RC_NONE, RC_REFR_RA, RC_REFR_BOTH, RC_FULL_RA, RC_FULL_BOTH};
+  #ifdef TRACK_REFRACTION_RATE_DEFAULT_ON
+    RateCompensation rateCompensation=RC_REFR_RA;
+  #else
+    RateCompensation rateCompensation=RC_NONE;
+  #endif
 #else
-#define refraction_enable true       // refraction allowed
+  enum RateCompensation {RC_NONE};
+  RateCompensation rateCompensation=RC_NONE;
 #endif
-
-#ifdef TRACK_REFRACTION_RATE_DEFAULT_ON
-boolean refraction = refraction_enable;
-#else
-boolean refraction = false;
-#endif
-boolean onTrack = false;
-boolean onTrackDec = false;
 
 long    maxRate = MaxRate*16L;
 
@@ -77,8 +76,8 @@ volatile boolean useTimerRateRatio     = (StepsPerDegreeAxis1!=StepsPerDegreeAxi
 #define BreakDistAxis1                   (2L)
 #define BreakDistAxis2                   (2L)
 #define SecondsPerWormRotationAxis1      ((long)(StepsPerWormRotationAxis1/StepsPerSecondAxis1))
-volatile double StepsForRateChangeAxis1= ((double)DegreesForAcceleration/sqrt((double)StepsPerDegreeAxis1))*0.3333333*StepsPerDegreeAxis1*MaxRate;
-volatile double StepsForRateChangeAxis2= ((double)DegreesForAcceleration/sqrt((double)StepsPerDegreeAxis2))*0.3333333*StepsPerDegreeAxis2*MaxRate;
+volatile double StepsForRateChangeAxis1= (sqrt((double)DegreesForAcceleration*(double)StepsPerDegreeAxis1))*(double)MaxRate*16.0;
+volatile double StepsForRateChangeAxis2= (sqrt((double)DegreesForAcceleration*(double)StepsPerDegreeAxis2))*(double)MaxRate*16.0;
 #ifndef DegreesForRapidStop
 #define DegreesForRapidStop 1.0
 #endif
@@ -155,7 +154,6 @@ volatile long stepAxis2=1;
 #endif
 
 double newTargetAlt=0.0, newTargetAzm=0.0;         // holds the altitude and azmiuth for slews
-double currentAlt = 45;                            // the current altitude
 // for goto's, how far past the meridian to allow before we do a flip (if on the East side of the pier) - one hour of RA is the default = 60.  Sometimes used for Fork mounts in Align mode.  Ignored on Alt/Azm mounts.
 long minutesPastMeridianE = 60L;
 // as above, if on the West side of the pier.  If left alone, the mount will stop tracking when it hits the this limit.  Sometimes used for Fork mounts in Align mode.  Ignored on Alt/Azm mounts.
@@ -164,74 +162,10 @@ int    minAlt;                                     // the minimum altitude, in d
 int    maxAlt;                                     // the maximum altitude, in degrees, for goTo's (to keep the telescope tube away from the mount/tripod)
 bool   autoMeridianFlip = false;                   // automatically do a meridian flip and continue when we hit the MinutesPastMeridianW
 
-// Globals for rotator/de-rotator ------------------------------------------------------------------------------------------
-#ifdef ROTATOR_ON
-bool deRotate        = false;
-bool deRotateReverse = false;
-long posAxis3        = 0;                          // rotator position in steps
-fixed_t targetAxis3;                               // rotator goto position in steps
-fixed_t amountRotateAxis3;                         // rotator movement per 0.01/s
-long axis3Increment  = 1;                          // rotator increment for manual control
-unsigned long axis3Ms=0;
-#ifdef REVERSE_AXIS3_ON
-#define AXIS3_FORWARD LOW
-#define AXIS3_REVERSE HIGH
-#else
-#define AXIS3_FORWARD HIGH
-#define AXIS3_REVERSE LOW
-#endif
-#endif
-
-// Globals for focusers ----------------------------------------------------------------------------------------------------
-#ifdef FOCUSER1_ON
-long posAxis4        = 0;                          // focuser position in steps
-fixed_t targetAxis4;                               // focuser goto position in steps
-fixed_t amountMoveAxis4;                           // focuser movement per 0.01/s
-long axis4Increment  = 1;                          // focuser increment for manual control
-unsigned long axis4Ms=0;
-#ifdef REVERSE_AXIS4_ON
-#define AXIS4_FORWARD LOW
-#define AXIS4_REVERSE HIGH
-#else
-#define AXIS4_FORWARD HIGH
-#define AXIS4_REVERSE LOW
-#endif
-#endif
-
-#ifdef FOCUSER2_ON
-long posAxis5        = 0;                          // focuser position in steps
-fixed_t targetAxis5;                               // focuser goto position in steps
-fixed_t amountMoveAxis5;                           // focuser movement per 0.01/s
-long axis5Increment  = 1;                          // focuser increment for manual control
-unsigned long axis5Ms=0;
-#ifdef REVERSE_AXIS5_ON
-#define AXIS5_FORWARD LOW
-#define AXIS5_REVERSE HIGH
-#else
-#define AXIS5_FORWARD HIGH
-#define AXIS5_REVERSE LOW
-#endif
-#endif
+double currentAlt = 45.0;                          // the current altitude
+double currentDec = 0.0;                           // the current declination
 
 // Stepper driver enable/disable and direction -----------------------------------------------------------------------------
-#if defined(AXIS1_DISABLED_HIGH)
-#define Axis1_Disabled HIGH
-#define Axis1_Enabled LOW
-#endif
-#if defined(AXIS1_DISABLED_LOW)
-#define Axis1_Disabled LOW
-#define Axis1_Enabled HIGH
-#endif
-boolean axis1Enabled = false;
-#if defined(AXIS2_DISABLED_HIGH)
-#define Axis2_Disabled HIGH
-#define Axis2_Enabled LOW
-#endif
-#if defined(AXIS2_DISABLED_LOW)
-#define Axis2_Disabled LOW
-#define Axis2_Enabled HIGH
-#endif
-boolean axis2Enabled = false;
 
 #define defaultDirAxis2EInit   1
 #define defaultDirAxis2WInit   0
@@ -243,6 +177,7 @@ volatile byte defaultDirAxis1  = defaultDirAxis1NCPInit;
 // Status ------------------------------------------------------------------------------------------------------------------
 enum Errors {ERR_NONE, ERR_MOTOR_FAULT, ERR_ALT, ERR_LIMIT_SENSE, ERR_DEC, ERR_AZM, ERR_UNDER_POLE, ERR_MERIDIAN, ERR_SYNC};
 Errors lastError = ERR_NONE;
+enum GotoErrors {GOTO_ERR_NONE, GOTO_ERR_BELOW_HORIZON, GOTO_ERR_ABOVE_OVERHEAD, GOTO_ERR_STANDBY, GOTO_ERR_PARK, GOTO_ERR_GOTO, GOTO_ERR_OUTSIDE_LIMITS, GOTO_ERR_HARDWARE_FAULT, GOTO_ERR_IN_MOTION, GOTO_ERR_UNSPECIFIED};
 
 boolean highPrecision = true;
 
@@ -254,6 +189,9 @@ volatile byte trackingState      = TrackingNone;
 byte abortTrackingState          = TrackingNone;
 volatile byte lastTrackingState  = TrackingNone;
 boolean abortSlew                = false;
+volatile boolean safetyLimitsOn  = true;
+boolean axis1Enabled             = false;
+boolean axis2Enabled             = false;
 
 #define MeridianFlipNever  0
 #define MeridianFlipAlign  1
@@ -304,15 +242,13 @@ unsigned long baudRate[10] = {115200,56700,38400,28800,19200,14400,9600,4800,240
 #define GuideRate1x        2
 #define GuideRate24x       6
 #define GuideRateNone      255
-
-#define DegreesPerSecond (1.0/((double)StepsPerDegreeAxis1*(MaxRate/1000000.0)))         // in degrees per second
-#define slewRate         (1.0/((double)StepsPerDegreeAxis1*(MaxRate/1000000.0))*3600.0)  // in arc-seconds per second
-#define slewRateX (slewRate/15.0)                                                        // in RA seconds per second
-#define halfSlewRate (slewRate/2.0)
-#define accArcsecPerSec  (slewRateX/DegreesForAcceleration)
-#define accDegreesPerSec (DegreesPerSecond/DegreesForAcceleration)
-double  guideRates[10]={3.75,7.5,15,30,60,120,360,720,halfSlewRate,slewRate};
-//                      .25X .5x 1x 2x 4x  8x 24x 48x half-MaxRate MaxRate
+#define RateToDegPerSec  (1000000.0/(double)StepsPerDegreeAxis1)
+#define RateToASPerSec   (RateToDegPerSec*3600.0)
+#define RateToXPerSec    (RateToASPerSec/15.0)
+double  slewRateX     =  (RateToXPerSec/MaxRate); // double since exponential factor slows by about 1/2
+double  accXPerSec    =  (slewRateX/DegreesForAcceleration);
+double  guideRates[10]={3.75,7.5,15,30,60,120,360,720,(RateToASPerSec/MaxRate)/2.0,RateToASPerSec/MaxRate};
+//                      .25X .5x 1x 2x 4x  8x 24x 48x       half-MaxRate                   MaxRate
 
 byte currentGuideRate        = GuideRate24x;
 byte currentPulseGuideRate   = GuideRate1x;
@@ -403,91 +339,54 @@ volatile int backlashAxis2  = 0;
 volatile int blAxis1        = 0;
 volatile int blAxis2        = 0;
 
-// EEPROM Info --------------------------------------------------------------------------------------------------------------
-// 0-1023 bytes
-// general purpose storage 0..99
+// aux pin control
+#ifdef Aux0
+byte valueAux0 = 0;
+#endif
+#ifdef Aux1
+byte valueAux1 = 0;
+#endif
+#ifdef Aux2
+byte valueAux2 = 0;
+#endif
+#ifdef Aux3
+byte valueAux3 = 0;
+#endif
+#ifdef Aux4
+byte valueAux4 = 0;
+#endif
+#ifdef Aux5
+byte valueAux5 = 0;
+#endif
+#ifdef Aux6
+byte valueAux6 = 0;
+#endif
+#ifdef Aux7
+byte valueAux7 = 0;
+#endif
+#ifdef Aux8
+byte valueAux8 = 0;
+#endif
+#ifdef Aux9
+byte valueAux9 = 0;
+#endif
+#ifdef Aux10
+byte valueAux10 = 0;
+#endif
+#ifdef Aux11
+byte valueAux11 = 0;
+#endif
+#ifdef Aux12
+byte valueAux12 = 0;
+#endif
+#ifdef Aux13
+byte valueAux13 = 0;
+#endif
+#ifdef Aux14
+byte valueAux14 = 0;
+#endif
+#ifdef Aux15
+byte valueAux15 = 0;
+#endif
 
-#define EE_posAxis1    0      // 4
-#define EE_posAxis2    4      // 4
-#define EE_pierSide    8      // 1
-#define EE_parkStatus  9      // 1
-#define EE_parkSaved   10     // 1
-
-#define EE_currentSite 11     // 1
-
-#define EE_sgSgtAxis1  12     // 1
-#define EE_sgSgtAxis2  13     // 1
-
-#define EE_LMT         14     // 4
-#define EE_JD          18     // 4
-
-#define EE_pulseGuideRate 22  // 1
-#define EE_maxRate     23     // 2
-
-#define EE_autoMeridianFlip 25 // 1
-
-#define EE_dfCor       26     // 4
-
-#define EE_trueAxis1   30     // 4
-#define EE_trueAxis2   34     // 4
-
-#define EE_dpmE        38     // 1
-#define EE_dpmW        39     // 1
-#define EE_minAlt      40     // 1
-#define EE_maxAlt      41     // 1
-
-#define EE_doCor       42     // 4
-#define EE_pdCor       46     // 4
-#define EE_altCor      50     // 4
-#define EE_azmCor      54     // 4
-#define EE_indexAxis1  58     // 4
-#define EE_indexAxis2  62     // 4
-#define EE_tfCor       66     // 4
-
-#define EE_pecStatus   70     // 1
-#define EE_pecRecorded 71     // 1
-
-#define EE_sgLimitAxis1 72    // 2
-#define EE_sgLimitAxis2 74    // 2
-
-#define EE_wormSensePos 76    // 4
-
-#define EE_backlashAxis1 80   // 4
-#define EE_backlashAxis2 84   // 4
-#define EE_siderealInterval 88  // 4
-#define EE_onTrackDec  92     // 1
-#define EE_pauseHome   93     // 1 +2
-
-#define EE_autoInitKey 96
-
-// site index: 100-199
-// 100..103 latitude  1  ((index 1-1)*25+100)
-// 104..107 longitude 1
-// 108      timeZone  1
-// 109..124 site name 1
-
-// 125..128 latitude  2  ((index 2-1)*25+100)
-// 129..132 longitude 2
-// 133      timeZone  2
-// 134..149 site name 2
-
-// 150..103 latitude  3  ((index 3-1)*25+100)
-// 154..157 longitude 3
-// 158      timeZone  3
-// 159..174 site name 3
-
-// 175..178 latitude  4  ((index 4-1)*25+100)
-// 179..182 longitude 4
-// 183      timeZone  4
-// 184..199 site name 4
-
-#define EE_sites    100
-
-// PEC table: 200...PECBufferSize+200-1
-// PECBufferSize table of byte sized integers -128..+127, units are steps
-
-#define EE_pecTable 200
-
-// Library
-// Catalog storage starts at 200+PECBufferSize and fills EEPROM
 
