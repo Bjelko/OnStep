@@ -19,7 +19,6 @@ class focuser {
 
       if (stepPin!=-1) pinMode(stepPin,OUTPUT);
       if (dirPin!=-1) pinMode(dirPin,OUTPUT);
-      if (enPin!=-1) { pinMode(enPin,OUTPUT); digitalWrite(enPin,LOW); }
     
       spos=readPos();
       target.part.m=spos; target.part.f=0;
@@ -71,8 +70,9 @@ class focuser {
 
     // allows enabling/disabling stepper driver
     void powerDownActive(boolean active) {
-      pda=active;      
-      if (pda && (enPin!=-1)) { pinMode(enPin,OUTPUT); digitalWrite(enPin,disableState); currentlyDisabled=true; }
+      if (enPin==-1) { pda=false; return; }
+      pda=active;
+      if (pda) { pinMode(enPin,OUTPUT); digitalWrite(enPin,disableState); currentlyDisabled=true; }
     }
 
     // set movement rate in microns/second
