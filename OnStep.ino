@@ -41,7 +41,7 @@
 #define FirmwareDate          __DATE__
 #define FirmwareVersionMajor  1
 #define FirmwareVersionMinor  8
-#define FirmwareVersionPatch  "q"     // for example major.minor patch: 1.3c
+#define FirmwareVersionPatch  "r"     // for example major.minor patch: 1.3c
 #define FirmwareVersionConfig 2       // internal, for tracking configuration file changes
 #define FirmwareName          "On-Step"
 #define FirmwareTime          __TIME__
@@ -206,7 +206,11 @@ void setup() {
   #endif
   #ifdef AXIS3_DISABLE
     rot.setDisableState(AXIS3_DISABLE);
-    rot.powerDownActive(true);
+    #ifdef AXIS3_AUTO_POWER_DOWN_ON
+      rot.powerDownActive(true);
+    #else
+      rot.powerDownActive(false);
+    #endif
   #endif
 #endif
 
@@ -220,7 +224,11 @@ void setup() {
   #endif
   #ifdef AXIS4_DISABLE
     foc1.setDisableState(AXIS4_DISABLE);
-    foc1.powerDownActive(true);
+    #ifdef AXIS4_AUTO_POWER_DOWN_ON
+      foc1.powerDownActive(true);
+    #else
+      foc1.powerDownActive(false);
+    #endif
   #endif
 #endif
 #ifdef FOCUSER2_ON
@@ -232,7 +240,11 @@ void setup() {
   #endif
   #ifdef AXIS5_DISABLE
     foc2.setDisableState(AXIS4_DISABLE);
-    foc2.powerDownActive(true);
+    #ifdef AXIS5_AUTO_POWER_DOWN_ON
+      foc2.powerDownActive(true);
+    #else
+      foc2.powerDownActive(false);
+    #endif
   #endif
 #endif
 
