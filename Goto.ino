@@ -11,7 +11,7 @@ GotoErrors syncEqu(double RA, double Dec) {
   EquToHor(HA,Dec,&a,&z);
 
   // validate
-  GotoErrors f=validateGoto(); if (f!=GOTO_ERR_NONE) return f;
+  GotoErrors f=validateGoto(); if ((f!=GOTO_ERR_NONE) && (f!=GOTO_ERR_STANDBY)) return f;
   f=validateGotoCoords(HA,Dec,a); if (f!=GOTO_ERR_NONE) return f;
 
   // correct for polar misalignment only by clearing the index offsets
