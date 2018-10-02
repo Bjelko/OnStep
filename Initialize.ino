@@ -339,8 +339,8 @@ void Init_ReadNV_Values() {
 #endif
 
   // set the default guide rate, 24x sidereal
-  setGuideRate(GuideRate24x);
-  enableGuideRate(GuideRate24x);
+  setGuideRate(GuideRateDefault);
+  enableGuideRate(GuideRateDefault);
 }
 
 void Init_WriteNV_Values() {
@@ -476,4 +476,3 @@ unsigned int searchTable(unsigned int Table[][2], int TableLen, unsigned int Mic
   return 0;
 }
 #endif
-
