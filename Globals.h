@@ -240,7 +240,7 @@ unsigned long baudRate[10] = {115200,56700,38400,28800,19200,14400,9600,4800,240
 
 // Guide command ------------------------------------------------------------------------------------------------------------
 #define GuideRate1x        2
-#ifdef GuideRateDefault
+#ifndef GuideRateDefault
 #define GuideRateDefault   6
 #endif
 #define GuideRateNone      255
